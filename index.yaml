@@ -1,0 +1,12 @@
+apiVersion: v1
+entries:
+  hello-world:
+  - apiVersion: v1
+    created: "2022-04-22T14:43:17.360908549Z"
+    description: Hello World example chart
+    digest: 483406f7b353ed6262064e3f2b2de6483ea5f7c99176fe05a0ab9003330089cf
+    name: hello-world
+    urls:
+    - hello-world-0.3.0.tgz
+    version: 0.3.0
+generated: "2022-04-22T14:43:17.360464304Z"
