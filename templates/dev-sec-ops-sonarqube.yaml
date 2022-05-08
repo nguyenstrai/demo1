@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for DevSecOps Demo Sonar build server
+Parameters:
+  ImageId:
+    Default: ami-0c4f7023847b90238
+    Description: 'EC2 AMI ID '
+    Type: String
+  InstanceType:
+    Default: t2.medium
+    Description: 'EC2 instance type '
+    Type: String
+  KeyName:
+    Default: devsecops_key
+    Description: 'Key'
+    Type: String
+  SecurityGroupIds:
+    Default: sg-033fa747aa5932492
+    Description: SecurityGroup
+    Type: String
+  SubnetId:
+    Default: subnet-0f9d6d02ec211aa92
+    Description: Subnet
+    Type: String
+Resources:
+  SonarServer:
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref SecurityGroupIds
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           sudo apt update
+           sysctl -w vm.max_map_count=524288
+           sysctl -w fs.file-max=131072
+           ulimit -n 131072
+           ulimit -u 8192
+           sudo apt install -y docker.io
+           sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+           sudo chmod +x /usr/local/bin/docker-compose
+           sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+           cat > sonar.yml <<EOF
+           version: "3"
+           
+           services:
+             sonarqube:
+               image: sonarqube:community
+               depends_on:
+                 - db
+               environment:
+                 SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+                 SONAR_JDBC_USERNAME: sonar
+                 SONAR_JDBC_PASSWORD: sonar
+               volumes:
+                 - sonarqube_data:/opt/sonarqube/data
+                 - sonarqube_extensions:/opt/sonarqube/extensions
+                 - sonarqube_logs:/opt/sonarqube/logs
+               ports:
+                 - "9000:9000"
+             db:
+               image: postgres
+               environment:
+                 POSTGRES_USER: sonar
+                 POSTGRES_PASSWORD: sonar
+               volumes:
+                 - postgresql:/var/lib/postgresql
+                 - postgresql_data:/var/lib/postgresql/data
+           
+           volumes:
+             sonarqube_data:
+             sonarqube_extensions:
+             sonarqube_logs:
+             postgresql:
+             postgresql_data:
+           EOF
+           docker-compose -f sonar.yml up &
+      Tags:
+        - Key: Name
+          Value: Sonar_server
+        - Key: Stack_name
+          Value: stack_DevSecOps
+        - Key: Type
+          Value: Sonar
+    Type: AWS::EC2::Instance
+
+Outputs:
+  SonarServerInstanceId:
+    Value: !Ref 'SonarServer'
+    Description: Instance Id of instance
+  SonarServerPrimaryPrivateIPAddress:
+    Value: !GetAtt [SonarServer, PrivateIp]
+    Description: Primary private IP address

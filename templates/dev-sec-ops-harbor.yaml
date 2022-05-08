@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for DevSecOps Demo Harbor server
+Parameters:
+  ImageId:
+    Default: ami-0c4f7023847b90238
+    Description: 'EC2 AMI ID '
+    Type: String
+  InstanceType:
+    Default: t2.medium
+    Description: 'EC2 instance type '
+    Type: String
+  KeyName:
+    Default: devsecops_key
+    Description: 'Key'
+    Type: String
+  SecurityGroupIds:
+    Default: sg-033fa747aa5932492
+    Description: SecurityGroup
+    Type: String
+  SubnetId:
+    Default: subnet-0f9d6d02ec211aa92
+    Description: Subnet
+    Type: String
+Resources:
+  HarborServer:
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref SecurityGroupIds
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           sudo apt update
+           sysctl -w vm.max_map_count=524288
+           sysctl -w fs.file-max=131072
+           ulimit -n 131072
+           ulimit -u 8192
+           sudo apt install -y docker.io
+           sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+           sudo chmod +x /usr/local/bin/docker-compose
+           sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+           mkdir -p /apps
+           cd /apps
+           wget https://github.com/goharbor/harbor/releases/download/v2.5.0/harbor-offline-installer-v2.5.0.tgz
+           tar -zxvf harbor-offline-installer-v2.5.0.tgz
+           cd harbor
+           sed -e "s%hostname: reg.mydomain.com%hostname: $(curl http://169.254.169.254/latest/meta-data/public-ipv4)%ig" harbor.yml.tmpl >> harbor2.yml
+           sed -e "s%https:%# https:%ig" harbor2.yml >> harbor3.yml
+           sed -e "s%  port: 443%# port: 443%ig" harbor3.yml >> harbor4.yml
+           sed -e "s%  certificate:%# certificate:%ig" harbor4.yml >> harbor5.yml
+           sed -e "s%  private_key:%# private_key:%ig" harbor5.yml >> harbor.yml
+           ./install.sh
+           docker-compose -f docker-compose.yml up &
+      Tags:
+        - Key: Name
+          Value: Harbor_server
+        - Key: Stack_name
+          Value: stack_DevSecOps
+        - Key: Type
+          Value: Harbor
+    Type: AWS::EC2::Instance
+
+Outputs:
+  HarborServerInstanceId:
+    Value: !Ref 'HarborServer'
+    Description: Instance Id of instance
+  HarborServerPrimaryPrivateIPAddress:
+    Value: !GetAtt [HarborServer, PrivateIp]
+    Description: Primary private IP address

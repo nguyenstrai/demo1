@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for DevSecOps Demo Harbor server
+Parameters:
+  ImageId:
+    Default: ami-0c4f7023847b90238
+    Description: 'EC2 AMI ID '
+    Type: String
+  InstanceType:
+    Default: t2.medium
+    Description: 'EC2 instance type '
+    Type: String
+  KeyName:
+    Default: devsecops_key
+    Description: 'Key'
+    Type: String
+  SecurityGroupIds:
+    Default: sg-033fa747aa5932492
+    Description: SecurityGroup
+    Type: String
+  SubnetId:
+    Default: subnet-0f9d6d02ec211aa92
+    Description: Subnet
+    Type: String
+Resources:
+  GitlabServer:
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref SecurityGroupIds
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           sudo apt update
+           sudo apt upgrade -y
+           sudo apt install -y ca-certificates curl openssh-server tzdata
+           sudo apt update
+           curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+           cat /etc/apt/sources.list.d/gitlab_gitlab-ce.list
+           sudo apt update
+           sudo apt install gitlab-ce
+           sudo gitlab-ctl status
+      Tags:
+        - Key: Name
+          Value: Gitlab_server
+        - Key: Stack_name
+          Value: stack_DevSecOps
+        - Key: Type
+          Value: Gitlab
+    Type: AWS::EC2::Instance
+    
+Outputs:
+  GitlabServerInstanceId:
+    Value: !Ref 'GitlabServer'
+    Description: Instance Id of instance
+  GitlabServerPrimaryPrivateIPAddress:
+    Value: !GetAtt [GitlabServer, PrivateIp]
+    Description: Primary private IP address
