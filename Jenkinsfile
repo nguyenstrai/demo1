@@ -3,20 +3,23 @@
 pipeline {
     agent any
     stages {
-        stage('Build') {
+        stage('Build Java App') {
             steps {
                 sh 'mvn -B -DskipTests clean package'
             }
         }
         
-        stage('SonarQube Analytics') {
+        stage('Build Docker Image') {
             steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.4.0.905:sonar'
-                }
+                sh 'docker build -t simplejavaapp .'
             }
         }
-        
+
+        stage('Scan Docker Image') {
+            steps {
+                sh 'trivy image simplejavaapp'
+            }
+        }
 
     }
 }
